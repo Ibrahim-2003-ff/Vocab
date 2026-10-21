@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" class="h-full bg-slate-900 text-slate-100">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>VocabMaster - منظم ومعلم المفردات</title>
+    <link rel="stylesheet" href="app.css">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="icon-192.png">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <meta name="theme-color" content="#4f46e5">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <style>
+        body {
+            font-family: 'Cairo', 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+        .english-text {
+            font-family: 'Inter', sans-serif;
+            direction: ltr;
+            display: inline-block;
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+        /* Card Flip Effect */
+        .perspective-1000 {
+            perspective: 1000px;
+        }
+        .transform-style-3d {
+            transform-style: preserve-3d;
+        }
+        .backface-hidden {
+            backface-visibility: hidden;
+        }
+        .rotate-y-180 {
+            transform: rotateY(180deg);
+        }
+    </style>
+</head>
+<body class="h-full flex flex-col bg-slate-900 text-slate-100 antialiased overflow-hidden select-none">
+
+    <!-- Top Header -->
+    <header class="bg-slate-800/80 backdrop-blur-md border-b border-slate-700/60 p-4 sticky top-0 z-30 flex justify-between items-center shrink-0">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                <i class="fa-solid font-bold fa-language text-xl text-white"></i>
+            </div>
+            <div>
+                <h1 class="text-lg font-bold leading-none tracking-wide text-white">VocabMaster</h1>
+                <p class="text-xs text-slate-400 mt-1">منظم القاموس والتدريب</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-2">
+            <button id="btnApiKey" onclick="openApiKeyModal()" class="p-2.5 rounded-xl bg-slate-700/60 hover:bg-slate-700 text-slate-300 transition text-sm flex items-center gap-1.5 border border-slate-600/40">
+                <i class="fa-solid fa-key text-amber-400"></i>
+                <span class="text-xs hidden sm:inline">مفتاح API</span>
+            </button>
+            <button onclick="exportData()" class="p-2.5 rounded-xl bg-slate-700/60 hover:bg-slate-700 text-slate-300 transition text-sm border border-slate-600/40" title="تصدير بيانات">
+                <i class="fa-solid fa-download"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Toast Notification Banner -->
+    <div id="toast" class="fixed top-16 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 opacity-0 pointer-events-none transform -translate-y-4 max-w-xs w-full">
+        <div id="toastContent" class="bg-indigo-600 text-white px-4 py-3 rounded-2xl shadow-xl flex items-center justify-between text-sm">
+            <span id="toastMsg">تمت العملية بنجاح</span>
+            <i class="fa-solid fa-circle-check text-lg"></i>
+        </div>
+    </div>
+
+    <!-- Main Content Container -->
+    <main class="flex-1 overflow-y-auto p-4 pb-24 max-w-md mx-auto w-full">
+
+        <!-- VIEW 1: WORDS LIST -->
+        <section id="viewWords" class="space-y-4">
+            <!-- Search & Filters -->
+            <div class="space-y-3">
+                <div class="relative">
+                    <i class="fa-solid fa-search absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                    <input type="text" id="searchInput" oninput="renderWords()" placeholder="ابحث عن كلمة بالإنجليزية أو العربية..." 
+                           class="w-full bg-slate-800 border border-slate-700/80 rounded-2xl pr-10 pl-4 py-3 text-sm text-slate-100 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition">
+                </div>
+
+                <!-- Category Pills Filter -->
+                <div class="flex gap-2 overflow-x-auto pb-1 no-scrollbar text-xs" id="categoryFilterContainer">
+                    <!-- Dynamic categories injected here -->
+                </div>
+            </div>
+
+            <!-- Stats Bar -->
+            <div class="grid grid-cols-3 gap-2 bg-slate-800/40 border border-slate-800 rounded-2xl p-3 text-center">
+                <div>
+                    <span class="block text-xs text-slate-400">إجمالي الكلمات</span>
+                    <span id="statTotal" class="text-base font-bold text-white">0</span>
+                </div>
+                <div class="border-r border-l border-slate-700/50">
+                    <span class="block text-xs text-amber-400">قيد التعلم</span>
+                    <span id="statLearning" class="text-base font-bold text-amber-400">0</span>
+                </div>
+                <div>
+                    <span class="block text-xs text-emerald-400">تم إتقانها</span>
+                    <span id="statMastered" class="text-base font-bold text-emerald-400">0</span>
+                </div>
+            </div>
+
+            <!-- Words Dynamic List -->
+            <div id="wordsList" class="space-y-3">
+                <!-- Words cards populated dynamically -->
+            </div>
+        </section>
+
+        <!-- VIEW 2: ADD WORD (AI TRANSLATE) -->
+        <section id="viewAdd" class="hidden space-y-4">
+            <div class="bg-slate-800 border border-slate-700/70 rounded-2xl p-5 space-y-4 shadow-xl">
+                <div class="flex items-center justify-between border-b border-slate-700/60 pb-3">
+                    <h2 class="text-base font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-wand-magic-sparkles text-indigo-400"></i>
+                        إضافة كلمة جديدة مع ترجمة Gemini
+                    </h2>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">الكلمة أو العبارة بالإنجليزية:</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="newWordInput" placeholder="مثال: Resilient" dir="ltr" 
+                               class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500">
+                        <button onclick="fetchGeminiTranslation()" id="btnFetchAi" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-3 rounded-xl font-medium text-sm transition flex items-center justify-center gap-2 shrink-0">
+                            <i class="fa-solid fa-bolt"></i>
+                            <span>ترجم</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Loader -->
+                <div id="aiLoader" class="hidden py-6 text-center text-indigo-400 space-y-2">
+                    <i class="fa-solid fa-circle-notch fa-spin text-2xl"></i>
+                    <p class="text-xs text-slate-400">جاري استخراج الترجمة والأمثلة بواسطة Gemini AI...</p>
+                </div>
+
+                <!-- AI Output Preview Form -->
+                <div id="aiResultsForm" class="space-y-3 pt-2">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">الترجمة بالعربية:</label>
+                        <input type="text" id="transAr" placeholder="الترجمة الرئيسية" 
+                               class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-100">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-300 mb-1">نوع الكلمة (Part of speech):</label>
+                            <input type="text" id="transType" placeholder="Verb / Noun / Adj" dir="ltr"
+                                   class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-300 mb-1">النطق (Phonetic):</label>
+                            <input type="text" id="transPhonetic" placeholder="/riˈzil.jənt/" dir="ltr"
+                                   class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">جملة توضيحية بالإنجليزية:</label>
+                        <textarea id="transExEn" rows="2" placeholder="Example sentence in English" dir="ltr"
+                                  class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-slate-100"></textarea>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">ترجمة الجملة التوضيحية:</label>
+                        <textarea id="transExAr" rows="2" placeholder="ترجمة الجملة بالعربية" 
+                                  class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-slate-100"></textarea>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">التصنيف:</label>
+                        <select id="transCategory" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-xs text-slate-100 focus:outline-none">
+                            <!-- Dynamic Categories -->
+                        </select>
+                    </div>
+
+                    <button onclick="saveWord()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-3 rounded-xl font-bold text-sm shadow-lg shadow-emerald-600/20 transition flex items-center justify-center gap-2 mt-4">
+                        <i class="fa-solid fa-floppy-disk"></i>
+                        حفظ الكلمة في القاموس
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- VIEW 3: PRACTICE & QUIZZES -->
+        <section id="viewPractice" class="hidden space-y-4">
+            <div id="practiceSelector" class="space-y-3">
+                <h2 class="text-base font-bold text-white mb-2">اختر نظام التدريب:</h2>
+                
+                <!-- Practice Mode Option 1 -->
+                <div onclick="startPractice('flashcard')" class="bg-slate-800 hover:bg-slate-750 border border-slate-700/80 p-4 rounded-2xl flex items-center justify-between cursor-pointer transition shadow-md group">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xl group-hover:scale-110 transition">
+                            <i class="fa-solid fa-clone"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-slate-100 text-sm">بطاقات الاستذكار (Flashcards)</h3>
+                            <p class="text-xs text-slate-400">عرض الكلمة وتقليب البطاقة لرؤية المعنى والتسميع</p>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-chevron-left text-slate-500"></i>
+                </div>
+
+                <!-- Practice Mode Option 2 -->
+                <div onclick="startPractice('quiz')" class="bg-slate-800 hover:bg-slate-750 border border-slate-700/80 p-4 rounded-2xl flex items-center justify-between cursor-pointer transition shadow-md group">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-xl group-hover:scale-110 transition">
+                            <i class="fa-solid fa-list-check"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-slate-100 text-sm">اختبار الخيارات المتعددة</h3>
+                            <p class="text-xs text-slate-400">اختر الترجمة الصحيحة من بين 4 خيارات</p>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-chevron-left text-slate-500"></i>
+                </div>
+
+                <!-- Practice Mode Option 3 -->
+                <div onclick="startPractice('spelling')" class="bg-slate-800 hover:bg-slate-750 border border-slate-700/80 p-4 rounded-2xl flex items-center justify-between cursor-pointer transition shadow-md group">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xl group-hover:scale-110 transition">
+                            <i class="fa-solid fa-keyboard"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-slate-100 text-sm">تدريب الإملاء والكتابة</h3>
+                            <p class="text-xs text-slate-400">اكتب الكلمة بالإنجليزية بناءً على معناها العربي</p>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-chevron-left text-slate-500"></i>
+                </div>
+            </div>
+
+            <!-- Active Practice Container (Dynamic) -->
+            <div id="practiceActiveArea" class="hidden">
+                <!-- Injected Flashcard / Quiz / Spelling UI -->
+            </div>
+        </section>
+
+        <!-- VIEW 4: CATEGORIES MANAGEMENT -->
+        <section id="viewCategories" class="hidden space-y-4">
+            <div class="bg-slate-800 border border-slate-700/70 rounded-2xl p-4 space-y-3">
+                <h2 class="text-base font-bold text-white">إضافة تصنيف جديد</h2>
+                <div class="flex gap-2">
+                    <input type="text" id="newCategoryInput" placeholder="اسم التصنيف (مثل: سفر، طب...)" 
+                           class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-xs text-slate-100 focus:outline-none">
+                    <button onclick="addCategory()" class="bg-indigo-600 text-white px-4 py-2.5 rounded-xl font-medium text-xs">
+                        إضافة
+                    </button>
+                </div>
+            </div>
+
+            <div class="space-y-2">
+                <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">التصنيفات الحالية:</h3>
+                <div id="categoriesManagementList" class="space-y-2">
+                    <!-- Dynamic categories list -->
+                </div>
+            </div>
+        </section>
+
+        <!-- VIEW 5: SETTINGS & BACKUP -->
+        <section id="viewSettings" class="hidden space-y-4">
+            <div class="bg-slate-800 border border-slate-700/70 rounded-2xl p-4 space-y-4">
+                <h2 class="text-base font-bold text-white border-b border-slate-700/60 pb-2">إعدادات الحساب وGemini</h2>
+                
+                <div class="space-y-2">
+                    <label class="block text-xs font-semibold text-slate-300">مفتاح API الخاص بـ Gemini:</label>
+                    <input type="password" id="settingsApiKey" placeholder="AIzaSy..." 
+                           class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100">
+                    <p class="text-[10px] text-slate-400">احصل على المفتاح المجاني من Google AI Studio للحصول على أفضل ترجمة تلقائية.</p>
+                    <button onclick="saveApiKeyFromSettings()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-medium">حفظ المفتاح</button>
+                </div>
+
+                <div class="border-t border-slate-700/60 pt-3 space-y-2">
+                    <h3 class="text-xs font-bold text-slate-300">نسخ احتياطي للبيانات:</h3>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="exportData()" class="bg-slate-700 text-slate-200 py-2.5 rounded-xl text-xs font-medium flex items-center justify-center gap-1">
+                            <i class="fa-solid fa-download"></i> تصدير (Backup)
+                        </button>
+                        <label class="bg-slate-700 text-slate-200 py-2.5 rounded-xl text-xs font-medium flex items-center justify-center gap-1 cursor-pointer">
+                            <i class="fa-solid fa-upload"></i> استيراد
+                            <input type="file" id="importFileInput" onchange="importData(event)" accept=".json" class="hidden">
+                        </label>
+                    </div>
+                </div>
+
+                <div class="border-t border-slate-700/60 pt-3">
+                    <button onclick="clearAllData()" class="w-full bg-red-500/20 hover:bg-red-500/30 text-red-400 py-2.5 rounded-xl text-xs font-medium transition">
+                        حذف كافة المفردات والبيانات
+                    </button>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Bottom Navigation Bar for Mobile -->
+    <nav class="fixed bottom-0 left-0 right-0 bg-slate-800/95 backdrop-blur-lg border-t border-slate-700/80 z-40">
+        <div class="max-w-md mx-auto grid grid-cols-5 h-16">
+            <button onclick="switchTab('words')" id="nav-words" class="nav-btn flex flex-col items-center justify-center text-indigo-400 transition">
+                <i class="fa-solid fa-book-bookmark text-lg"></i>
+                <span class="text-[10px] mt-1 font-medium">كلماتي</span>
+            </button>
+
+            <button onclick="switchTab('add')" id="nav-add" class="nav-btn flex flex-col items-center justify-center text-slate-400 transition">
+                <div class="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-600/30 -mt-3 border-2 border-slate-900">
+                    <i class="fa-solid fa-plus text-base"></i>
+                </div>
+                <span class="text-[10px] mt-0.5 font-medium">إضافة</span>
+            </button>
+
+            <button onclick="switchTab('practice')" id="nav-practice" class="nav-btn flex flex-col items-center justify-center text-slate-400 transition">
+                <i class="fa-solid fa-brain text-lg"></i>
+                <span class="text-[10px] mt-1 font-medium">تدريب</span>
+            </button>
+
+            <button onclick="switchTab('categories')" id="nav-categories" class="nav-btn flex flex-col items-center justify-center text-slate-400 transition">
+                <i class="fa-solid fa-layer-group text-lg"></i>
+                <span class="text-[10px] mt-1 font-medium">الأقسام</span>
+            </button>
+
+            <button onclick="switchTab('settings')" id="nav-settings" class="nav-btn flex flex-col items-center justify-center text-slate-400 transition">
+                <i class="fa-solid fa-gear text-lg"></i>
+                <span class="text-[10px] mt-1 font-medium">الإعدادات</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Modal: API Key Setup -->
+    <div id="modalApiKey" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5 max-w-xs w-full space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center border-b border-slate-700 pb-2">
+                <h3 class="font-bold text-sm text-white flex items-center gap-2">
+                    <i class="fa-solid fa-key text-amber-400"></i> إعداد مفتاح Gemini API
+                </h3>
+                <button onclick="closeApiKeyModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <p class="text-xs text-slate-300 leading-relaxed">
+                للحصول على ترجمة وتوليد أمثلة بالذكاء الاصطناعي، يرجى أدخال مفتاح Gemini API الخاص بك:
+            </p>
+            <input type="password" id="modalApiKeyInput" placeholder="أدخل المفتاح هنا..." 
+                   class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-slate-100 focus:outline-none focus:border-indigo-500">
+            <div class="flex gap-2">
+                <button onclick="saveModalApiKey()" class="flex-1 bg-indigo-600 text-white py-2 rounded-xl text-xs font-bold">حفظ</button>
+                <button onclick="closeApiKeyModal()" class="flex-1 bg-slate-700 text-slate-300 py-2 rounded-xl text-xs">إلغاء</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Script Logic -->
+    <script>
+        // State Management
+        let appState = {
+            words: [],
+            categories: ["عامة", "عمل", "سفر", "مصطلحات تقنية"],
+            activeCategoryFilter: "all",
+            apiKey: "",
+            practiceMode: null,
+            practiceQueue: [],
+            currentPracticeIndex: 0,
+            practiceScore: 0
+        };
+
+        // Initialize App on Load
+        window.onload = function() {
+            loadStorageData();
+            renderCategoriesFilter();
+            renderWords();
+            updateStats();
+
+            // Register PWA service worker if supported
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('sw.js')
+                    .catch(() => {});
+            }
+        };
+
+        // Local Storage Handler
+        function loadStorageData() {
+            const savedWords = localStorage.getItem('vm_words');
+            if (savedWords) {
+                try { appState.words = JSON.parse(savedWords); } catch(e){}
+            } else {
+                // Initial Default Sample Words
+                appState.words = [
+                    {
+                        id: '1',
+                        word: 'Perseverance',
+                        translation: 'الإصرار / المثابرة',
+                        type: 'Noun',
+                        phonetic: '/ˌpɜː.sɪˈvɪə.rəns/',
+                        exampleEn: 'Success requires hard work and perseverance.',
+                        exampleAr: 'النجاح يتطلب العمل الجاد والمثابرة.',
+                        category: 'عامة',
+                        status: 'Learning', // New, Learning, Mastered
+                        dateAdded: Date.now()
+                    },
+                    {
+                        id: '2',
+                        word: 'Negotiate',
+                        translation: 'يتفاوض',
+                        type: 'Verb',
+                        phonetic: '/nəˈɡəʊ.ʃi.eɪt/',
+                        exampleEn: 'They managed to negotiate a better deal.',
+                        exampleAr: 'استطاعوا التوصل إلى اتفاق أفضل بالتفاوض.',
+                        category: 'عمل',
+                        status: 'New',
+                        dateAdded: Date.now() - 10000
+                    }
+                ];
+                saveWordsToStorage();
+            }
+
+            const savedCats = localStorage.getItem('vm_categories');
+            if (savedCats) {
+                try { appState.categories = JSON.parse(savedCats); } catch(e){}
+            }
+
+            appState.apiKey = localStorage.getItem('vm_gemini_key') || '';
+            document.getElementById('settingsApiKey').value = appState.apiKey;
+        }
+
+        function saveWordsToStorage() {
+            localStorage.setItem('vm_words', JSON.stringify(appState.words));
+            updateStats();
+        }
+
+        function saveCategoriesToStorage() {
+            localStorage.setItem('vm_categories', JSON.stringify(appState.categories));
+        }
+
+        // Navigation Tabs
+        function switchTab(tabName) {
+            const views = ['words', 'add', 'practice', 'categories', 'settings'];
+            views.forEach(v => {
+                const el = document.getElementById('view' + capitalize(v));
+                const navBtn = document.getElementById('nav-' + v);
+                if (v === tabName) {
+                    el.classList.remove('hidden');
+                    if (navBtn) {
+                        navBtn.classList.remove('text-slate-400');
+                        navBtn.classList.add('text-indigo-400');
+                    }
+                } else {
+                    el.classList.add('hidden');
+                    if (navBtn) {
+                        navBtn.classList.remove('text-indigo-400');
+                        navBtn.classList.add('text-slate-400');
+                    }
+                }
+            });
+
+            if (tabName === 'add') {
+                populateCategoryDropdown();
+            } else if (tabName === 'categories') {
+                renderCategoriesManagementList();
+            }
+        }
+
+        function capitalize(str) {
+            return str.charAt(0).toUpperCase() + str.slice(1);
+        }
+
+        // Render Words List & Filter
+        function renderCategoriesFilter() {
+            const container = document.getElementById('categoryFilterContainer');
+            let html = `
+                <button onclick="setCategoryFilter('all')" class="px-3 py-1.5 rounded-xl whitespace-nowrap transition ${appState.activeCategoryFilter === 'all' ? 'bg-indigo-600 text-white font-semibold' : 'bg-slate-800 text-slate-300 border border-slate-700'}">
+                    الكل
+                </button>
+            `;
+            appState.categories.forEach(cat => {
+                const isActive = appState.activeCategoryFilter === cat;
+                html += `
+                    <button onclick="setCategoryFilter('${cat}')" class="px-3 py-1.5 rounded-xl whitespace-nowrap transition ${isActive ? 'bg-indigo-600 text-white font-semibold' : 'bg-slate-800 text-slate-300 border border-slate-700'}">
+                        ${cat}
+                    </button>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        function setCategoryFilter(cat) {
+            appState.activeCategoryFilter = cat;
+            renderCategoriesFilter();
+            renderWords();
+        }
+
+        function renderWords() {
+            const container = document.getElementById('wordsList');
+            const search = document.getElementById('searchInput').value.toLowerCase().trim();
+
+            let filtered = appState.words.filter(item => {
+                const matchesCat = appState.activeCategoryFilter === 'all' || item.category === appState.activeCategoryFilter;
+                const matchesSearch = item.word.toLowerCase().includes(search) || item.translation.toLowerCase().includes(search);
+                return matchesCat && matchesSearch;
+            });
+
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-12 text-slate-500 space-y-2">
+                        <i class="fa-solid fa-folder-open text-3xl"></i>
+                        <p class="text-xs">لا توجد كلمات متاحة لعرضها</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '';
+            filtered.forEach(item => {
+                let statusBadge = '';
+                if (item.status === 'Mastered') {
+                    statusBadge = `<span class="px-2 py-0.5 rounded-lg text-[10px] bg-emerald-500/20 text-emerald-400 font-semibold border border-emerald-500/30">مُتقن</span>`;
+                } else if (item.status === 'Learning') {
+                    statusBadge = `<span class="px-2 py-0.5 rounded-lg text-[10px] bg-amber-500/20 text-amber-400 font-semibold border border-amber-500/30">قيد التعلم</span>`;
+                } else {
+                    statusBadge = `<span class="px-2 py-0.5 rounded-lg text-[10px] bg-indigo-500/20 text-indigo-400 font-semibold border border-indigo-500/30">جديدة</span>`;
+                }
+
+                html += `
+                    <div class="bg-slate-800/90 border border-slate-700/80 rounded-2xl p-4 space-y-2 shadow-sm transition hover:border-slate-600">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <h3 class="text-lg font-bold text-white english-text">${escapeHtml(item.word)}</h3>
+                                    <button onclick="speakWord('${escapeHtml(item.word)}')" class="text-indigo-400 hover:text-indigo-300 p-1 text-xs">
+                                        <i class="fa-solid fa-volume-high"></i>
+                                    </button>
+                                </div>
+                                <p class="text-xs text-slate-400 english-text">${escapeHtml(item.phonetic || '')} ${item.type ? `• <span class="italic">${escapeHtml(item.type)}</span>` : ''}</p>
+                            </div>
+                            <div class="flex items-center gap-1">
+                                ${statusBadge}
+                                <button onclick="deleteWord('${item.id}')" class="text-slate-500 hover:text-red-400 p-1.5 text-xs transition">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="border-t border-slate-700/50 pt-2">
+                            <p class="text-sm font-semibold text-indigo-300">${escapeHtml(item.translation)}</p>
+                            ${item.exampleEn ? `
+                                <div class="mt-2 text-xs bg-slate-900/60 p-2.5 rounded-xl border border-slate-800/80 space-y-1">
+                                    <p class="text-slate-200 english-text">${escapeHtml(item.exampleEn)}</p>
+                                    <p class="text-slate-400">${escapeHtml(item.exampleAr || '')}</p>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        function updateStats() {
+            document.getElementById('statTotal').innerText = appState.words.length;
+            document.getElementById('statLearning').innerText = appState.words.filter(w => w.status === 'Learning').length;
+            document.getElementById('statMastered').innerText = appState.words.filter(w => w.status === 'Mastered').length;
+        }
+
+        // Web Speech API Pronunciation
+        function speakWord(text) {
+            if ('speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'en-US';
+                utterance.rate = 0.9;
+                window.speechSynthesis.speak(utterance);
+            } else {
+                showToast('خاصية النطق غير مدعومة في متصفحك');
+            }
+        }
+
+        // Gemini AI Translation Integration
+        async function fetchGeminiTranslation() {
+            const word = document.getElementById('newWordInput').value.trim();
+            if (!word) {
+                showToast('يرجى كتابة كلمة بالإنجليزية أولاً');
+                return;
+            }
+
+            const apiKey = appState.apiKey;
+            
+            document.getElementById('aiLoader').classList.remove('hidden');
+
+            const systemPrompt = `You are an expert lexicographer and translator. Output strictly JSON with key fields: translation (Arabic translation of word), type (Part of speech e.g. Noun/Verb), phonetic (pronunciation text), exampleEn (simple example sentence in English using the word), exampleAr (Arabic translation of example sentence).`;
+            const userPrompt = `Translate and analyze the English word/phrase: "${word}".`;
+
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+            const payload = {
+                contents: [{ parts: [{ text: userPrompt }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+                generationConfig: {
+                    responseMimeType: "application/json"
+                }
+            };
+
+            try {
+                const res = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!res.ok) {
+                    throw new Error('فشل الإتصال بالخدمة أو مفتاح API غير صحيح');
+                }
+
+                const data = await res.json();
+                const jsonText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                
+                if (jsonText) {
+                    const parsed = JSON.parse(jsonText);
+                    document.getElementById('transAr').value = parsed.translation || '';
+                    document.getElementById('transType').value = parsed.type || '';
+                    document.getElementById('transPhonetic').value = parsed.phonetic || '';
+                    document.getElementById('transExEn').value = parsed.exampleEn || '';
+                    document.getElementById('transExAr').value = parsed.exampleAr || '';
+                    showToast('تمت الترجمة بواسطة الذكاء الاصطناعي!');
+                }
+            } catch (err) {
+                showToast(err.message || 'حدث خطأ في جلب الترجمة');
+            } finally {
+                document.getElementById('aiLoader').classList.add('hidden');
+            }
+        }
+
+        function populateCategoryDropdown() {
+            const select = document.getElementById('transCategory');
+            select.innerHTML = appState.categories.map(c => `<option value="${c}">${c}</option>`).join('');
+        }
+
+        function saveWord() {
+            const wordVal = document.getElementById('newWordInput').value.trim();
+            const transAr = document.getElementById('transAr').value.trim();
+
+            if (!wordVal || !transAr) {
+                showToast('يرجى ملء الكلمة والترجمة العربية');
+                return;
+            }
+
+            const newObj = {
+                id: Date.now().toString(),
+                word: wordVal,
+                translation: transAr,
+                type: document.getElementById('transType').value.trim(),
+                phonetic: document.getElementById('transPhonetic').value.trim(),
+                exampleEn: document.getElementById('transExEn').value.trim(),
+                exampleAr: document.getElementById('transExAr').value.trim(),
+                category: document.getElementById('transCategory').value,
+                status: 'New',
+                dateAdded: Date.now()
+            };
+
+            appState.words.unshift(newObj);
+            saveWordsToStorage();
+
+            // Reset form
+            document.getElementById('newWordInput').value = '';
+            document.getElementById('transAr').value = '';
+            document.getElementById('transType').value = '';
+            document.getElementById('transPhonetic').value = '';
+            document.getElementById('transExEn').value = '';
+            document.getElementById('transExAr').value = '';
+
+            showToast('تمت إضافة الكلمة بنجاح!');
+            switchTab('words');
+        }
+
+        function deleteWord(id) {
+            appState.words = appState.words.filter(w => w.id !== id);
+            saveWordsToStorage();
+            renderWords();
+            showToast('تم حذف الكلمة');
+        }
+
+        // PRACTICE & QUIZ SYSTEM
+        function startPractice(mode) {
+            if (appState.words.length === 0) {
+                showToast('قم بإضافة بعض الكلمات أولاً للبدء في التدريب');
+                return;
+            }
+
+            appState.practiceMode = mode;
+            // Shuffle words for practice queue
+            appState.practiceQueue = [...appState.words].sort(() => Math.random() - 0.5);
+            appState.currentPracticeIndex = 0;
+            appState.practiceScore = 0;
+
+            document.getElementById('practiceSelector').classList.add('hidden');
+            document.getElementById('practiceActiveArea').classList.remove('hidden');
+
+            renderCurrentPracticeCard();
+        }
+
+        function renderCurrentPracticeCard() {
+            const container = document.getElementById('practiceActiveArea');
+            const item = appState.practiceQueue[appState.currentPracticeIndex];
+
+            if (!item) {
+                // Practice Session End
+                container.innerHTML = `
+                    <div class="bg-slate-800 border border-slate-700/80 rounded-2xl p-6 text-center space-y-4">
+                        <div class="w-16 h-16 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mx-auto text-3xl">
+                            <i class="fa-solid fa-trophy"></i>
+                        </div>
+                        <h2 class="text-lg font-bold text-white">احسنت! أكملت الجلسة التدريبية</h2>
+                        <p class="text-xs text-slate-300">تم مراجعة ${appState.practiceQueue.length} كلمة بنجاح.</p>
+                        <button onclick="exitPractice()" class="bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-bold text-xs">
+                            العودة إلى قائمة التمارين
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+
+            if (appState.practiceMode === 'flashcard') {
+                container.innerHTML = `
+                    <div class="space-y-4">
+                        <div class="flex justify-between items-center text-xs text-slate-400">
+                            <button onclick="exitPractice()" class="hover:text-white"><i class="fa-solid fa-arrow-right"></i> إنهاء</button>
+                            <span>بطاقة ${appState.currentPracticeIndex + 1} من ${appState.practiceQueue.length}</span>
+                        </div>
+
+                        <!-- Card Flip Area -->
+                        <div onclick="this.querySelector('.card-inner').classList.toggle('rotate-y-180')" class="perspective-1000 min-h-[220px] cursor-pointer">
+                            <div class="card-inner relative w-full h-full duration-500 transform-style-3d bg-slate-800 border border-slate-700/80 rounded-2xl p-6 flex flex-col justify-between shadow-xl">
+                                <!-- Card Front -->
+                                <div class="backface-hidden flex flex-col items-center justify-center space-y-3 py-6">
+                                    <span class="text-xs text-indigo-400 font-semibold">${escapeHtml(item.category)}</span>
+                                    <h2 class="text-2xl font-extrabold text-white english-text">${escapeHtml(item.word)}</h2>
+                                    <p class="text-xs text-slate-400 english-text">${escapeHtml(item.phonetic || '')}</p>
+                                    <span class="text-[10px] text-slate-500 mt-4">(اضغط على البطاقة لرؤية الترجمة)</span>
+                                </div>
+                                <!-- Card Back -->
+                                <div class="absolute inset-0 backface-hidden rotate-y-180 bg-slate-800 rounded-2xl p-6 flex flex-col items-center justify-center space-y-3 border border-indigo-500/40">
+                                    <h3 class="text-xl font-bold text-emerald-400">${escapeHtml(item.translation)}</h3>
+                                    ${item.exampleEn ? `<p class="text-xs text-slate-300 text-center english-text mt-2">${escapeHtml(item.exampleEn)}</p>` : ''}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Controls -->
+                        <div class="grid grid-cols-2 gap-3 pt-2">
+                            <button onclick="updateWordMastery('${item.id}', 'Learning'); nextPracticeStep();" class="bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 py-3 rounded-xl font-bold text-xs">
+                                نحتاج إعادتها (مراجعة)
+                            </button>
+                            <button onclick="updateWordMastery('${item.id}', 'Mastered'); nextPracticeStep();" class="bg-emerald-600 hover:bg-emerald-500 text-white py-3 rounded-xl font-bold text-xs shadow-lg shadow-emerald-600/20">
+                                أعرفها جيداً (مُتقنة)
+                            </button>
+                        </div>
+                    </div>
+                `;
+            } else if (appState.practiceMode === 'quiz') {
+                // Generate 4 Options
+                let options = [item.translation];
+                let otherWords = appState.words.filter(w => w.id !== item.id);
+                otherWords.sort(() => Math.random() - 0.5);
+                for (let i = 0; i < Math.min(3, otherWords.length); i++) {
+                    options.push(otherWords[i].translation);
+                }
+                options.sort(() => Math.random() - 0.5);
+
+                container.innerHTML = `
+                    <div class="space-y-4">
+                        <div class="flex justify-between items-center text-xs text-slate-400">
+                            <button onclick="exitPractice()" class="hover:text-white"><i class="fa-solid fa-arrow-right"></i> إنهاء</button>
+                            <span>سؤال ${appState.currentPracticeIndex + 1} من ${appState.practiceQueue.length}</span>
+                        </div>
+
+                        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5 text-center space-y-2 shadow-lg">
+                            <span class="text-[10px] text-slate-400">ما هو المعنى الصحيح للكلمة:</span>
+                            <h2 class="text-2xl font-bold text-white english-text">${escapeHtml(item.word)}</h2>
+                        </div>
+
+                        <div class="space-y-2" id="quizOptionsContainer">
+                            ${options.map(opt => `
+                                <button onclick="checkQuizAnswer(this, '${escapeHtml(opt)}', '${escapeHtml(item.translation)}', '${item.id}')" 
+                                        class="w-full bg-slate-800 hover:bg-slate-750 border border-slate-700/80 p-3.5 rounded-xl text-sm font-medium text-slate-200 text-right transition">
+                                    ${escapeHtml(opt)}
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            } else if (appState.practiceMode === 'spelling') {
+                container.innerHTML = `
+                    <div class="space-y-4">
+                        <div class="flex justify-between items-center text-xs text-slate-400">
+                            <button onclick="exitPractice()" class="hover:text-white"><i class="fa-solid fa-arrow-right"></i> إنهاء</button>
+                            <span>كلمة ${appState.currentPracticeIndex + 1} من ${appState.practiceQueue.length}</span>
+                        </div>
+
+                        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-5 text-center space-y-2">
+                            <span class="text-[10px] text-slate-400">اكتب الكلمة بالإنجليزية للمعنى التالي:</span>
+                            <h2 class="text-xl font-bold text-indigo-300">${escapeHtml(item.translation)}</h2>
+                        </div>
+
+                        <div class="space-y-3">
+                            <input type="text" id="spellingInput" placeholder="أدخل الكلمة بالإنجليزية..." dir="ltr"
+                                   class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3.5 text-sm text-slate-100 text-center focus:outline-none focus:border-indigo-500">
+                            
+                            <button onclick="checkSpellingAnswer('${escapeHtml(item.word)}', '${item.id}')" 
+                                    class="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-3 rounded-xl font-bold text-xs shadow-lg shadow-indigo-600/20">
+                                تحقق من الإجابة
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        function checkQuizAnswer(btn, selected, correct, wordId) {
+            const allBtns = document.querySelectorAll('#quizOptionsContainer button');
+            allBtns.forEach(b => b.disabled = true);
+
+            if (selected === correct) {
+                btn.classList.remove('bg-slate-800', 'border-slate-700/80');
+                btn.classList.add('bg-emerald-600', 'text-white', 'border-emerald-500');
+                updateWordMastery(wordId, 'Mastered');
+            } else {
+                btn.classList.remove('bg-slate-800', 'border-slate-700/80');
+                btn.classList.add('bg-red-600', 'text-white', 'border-red-500');
+                updateWordMastery(wordId, 'Learning');
+            }
+
+            setTimeout(() => {
+                nextPracticeStep();
+            }, 1200);
+        }
+
+        function checkSpellingAnswer(correctWord, wordId) {
+            const input = document.getElementById('spellingInput');
+            const val = input.value.trim().toLowerCase();
+
+            if (val === correctWord.toLowerCase()) {
+                showToast('إجابة صحيحة ممتاز!');
+                updateWordMastery(wordId, 'Mastered');
+            } else {
+                showToast(`إجابة خاطئة، الكلمة الصحيحة هي: ${correctWord}`);
+                updateWordMastery(wordId, 'Learning');
+            }
+
+            setTimeout(() => {
+                nextPracticeStep();
+            }, 1500);
+        }
+
+        function updateWordMastery(wordId, status) {
+            const target = appState.words.find(w => w.id === wordId);
+            if (target) {
+                target.status = status;
+                saveWordsToStorage();
+            }
+        }
+
+        function nextPracticeStep() {
+            appState.currentPracticeIndex++;
+            renderCurrentPracticeCard();
+        }
+
+        function exitPractice() {
+            document.getElementById('practiceActiveArea').classList.add('hidden');
+            document.getElementById('practiceSelector').classList.remove('hidden');
+        }
+
+        // CATEGORIES MANAGEMENT
+        function renderCategoriesManagementList() {
+            const container = document.getElementById('categoriesManagementList');
+            container.innerHTML = appState.categories.map(cat => `
+                <div class="bg-slate-800 border border-slate-700/60 p-3 rounded-xl flex justify-between items-center text-xs">
+                    <span class="font-semibold text-slate-200">${cat}</span>
+                    <button onclick="deleteCategory('${cat}')" class="text-slate-500 hover:text-red-400 p-1">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function addCategory() {
+            const val = document.getElementById('newCategoryInput').value.trim();
+            if (!val) return;
+            if (!appState.categories.includes(val)) {
+                appState.categories.push(val);
+                saveCategoriesToStorage();
+                renderCategoriesFilter();
+                renderCategoriesManagementList();
+                document.getElementById('newCategoryInput').value = '';
+                showToast('تمت إضافة التصنيف');
+            }
+        }
+
+        function deleteCategory(cat) {
+            if (appState.categories.length <= 1) {
+                showToast('يجب أن يتبقى تصنيف واحد على الأقل');
+                return;
+            }
+            appState.categories = appState.categories.filter(c => c !== cat);
+            saveCategoriesToStorage();
+            renderCategoriesFilter();
+            renderCategoriesManagementList();
+            showToast('تم حذف التصنيف');
+        }
+
+        // SETTINGS & BACKUP
+        function saveApiKeyFromSettings() {
+            const key = document.getElementById('settingsApiKey').value.trim();
+            appState.apiKey = key;
+            localStorage.setItem('vm_gemini_key', key);
+            showToast('تم حفظ مفتاح API بنجاح');
+        }
+
+        function openApiKeyModal() {
+            document.getElementById('modalApiKeyInput').value = appState.apiKey;
+            document.getElementById('modalApiKey').classList.remove('hidden');
+        }
+
+        function closeApiKeyModal() {
+            document.getElementById('modalApiKey').classList.add('hidden');
+        }
+
+        function saveModalApiKey() {
+            const val = document.getElementById('modalApiKeyInput').value.trim();
+            appState.apiKey = val;
+            localStorage.setItem('vm_gemini_key', val);
+            document.getElementById('settingsApiKey').value = val;
+            closeApiKeyModal();
+            showToast('تم حفظ مفتاح API');
+        }
+
+        function exportData() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({
+                words: appState.words,
+                categories: appState.categories
+            }));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `vocabmaster_backup_${new Date().toISOString().slice(0,10)}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    if (parsed.words && Array.isArray(parsed.words)) {
+                        appState.words = parsed.words;
+                        saveWordsToStorage();
+                    }
+                    if (parsed.categories && Array.isArray(parsed.categories)) {
+                        appState.categories = parsed.categories;
+                        saveCategoriesToStorage();
+                    }
+                    renderCategoriesFilter();
+                    renderWords();
+                    showToast('تم استيراد البيانات بنجاح!');
+                } catch(err) {
+                    showToast('ملف التصدير غير صالح');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function clearAllData() {
+            if (confirm('هل أنت تأكد من إرادتك لحذف جميع الكلمات والتصنيفات؟')) {
+                localStorage.removeItem('vm_words');
+                localStorage.removeItem('vm_categories');
+                appState.words = [];
+                appState.categories = ["عامة"];
+                saveWordsToStorage();
+                saveCategoriesToStorage();
+                renderCategoriesFilter();
+                renderWords();
+                showToast('تم مسح كافة البيانات');
+            }
+        }
+
+        // Toast Helper
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMsg').innerText = msg;
+            toast.classList.remove('opacity-0', 'pointer-events-none', '-translate-y-4');
+            toast.classList.add('opacity-100', 'translate-y-0');
+
+            setTimeout(() => {
+                toast.classList.remove('opacity-100', 'translate-y-0');
+                toast.classList.add('opacity-0', 'pointer-events-none', '-translate-y-4');
+            }, 3000);
+        }
+
+        // Helper string escape
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+    </script>
+</body>
+</html>
